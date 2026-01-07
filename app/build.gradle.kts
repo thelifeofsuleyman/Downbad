@@ -57,6 +57,9 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.datastore:datastore-preferences:1.2.0") // For saving the start time
+    implementation("androidx.compose.material3:material3:1.4.0")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.navigation:navigation-compose:2.9.6")
 }
