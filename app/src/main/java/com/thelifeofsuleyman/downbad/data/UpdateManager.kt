@@ -4,14 +4,12 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import com.thelifeofsuleyman.downbad.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Locale
 
-// This class defines the different states an update can be in
 sealed class UpdateStatus {
     object UpToDate : UpdateStatus()
     data class Available(val version: String, val url: String) : UpdateStatus()
@@ -20,38 +18,55 @@ sealed class UpdateStatus {
 
 class UpdateManager(private val context: Context) {
 
-    // This points to the 'latest' tag created by your GitHub Action
-    private val repoUrl = "https://api.github.com/repos/thelifeofsuleyman/Downbad/releases/tags/latest"
+    private val repoUrl = "https://api.github.com/repos/thelifeofsuleyman/Downbad/releases/latest"
 
     suspend fun checkForUpdates(): UpdateStatus = withContext(Dispatchers.IO) {
         try {
             val response = URL(repoUrl).readText()
             val json = JSONObject(response)
 
-            // Get the date this APK was published on GitHub
-            val remoteDateString = json.getString("published_at")
-            val downloadUrl = json.getJSONArray("assets").getJSONObject(0).getString("browser_download_url")
+            // 1. Extract the version number (e.g., 1.0.5) from the Release Title
+            val releaseName = json.getString("name")
+            val remoteVersion = Regex("""\d+\.\d+\.\d+""").find(releaseName)?.value ?: "0.0.0"
 
-            if (isNewer(remoteDateString)) {
-                UpdateStatus.Available("Latest Commit", downloadUrl)
+            // 2. Get your app's local version (e.g., 1.0.0)
+            val localVersion = BuildConfig.VERSION_NAME
+
+            // 3. Find the APK download link
+            val assets = json.getJSONArray("assets")
+            if (assets.length() == 0) return@withContext UpdateStatus.Error("No APK found in release")
+            val downloadUrl = assets.getJSONObject(0).getString("browser_download_url")
+
+            // 4. Use the smart comparison logic
+            if (isNewer(remoteVersion, localVersion)) {
+                UpdateStatus.Available(remoteVersion, downloadUrl)
             } else {
                 UpdateStatus.UpToDate
             }
         } catch (e: Exception) {
-            UpdateStatus.Error(e.message ?: "Check Failed")
+            UpdateStatus.Error("Check failed: ${e.message}")
         }
     }
 
-    private fun isNewer(remoteDate: String): Boolean {
+    /**
+     * Compares two version strings (e.g., "1.0.10" and "1.0.9")
+     * Returns true if remote is strictly higher than local.
+     */
+    private fun isNewer(remote: String, local: String): Boolean {
+        if (remote == "0.0.0" || remote == local) return false
+
         return try {
-            // Parses GitHub date format: 2026-01-08T15:00:00Z
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-            val remoteTime = sdf.parse(remoteDate)?.time ?: 0
+            val remoteParts = remote.split(".").map { it.toIntOrNull() ?: 0 }
+            val localParts = local.split(".").map { it.toIntOrNull() ?: 0 }
 
-            // Get the time YOUR app was last updated/installed on the phone
-            val localTime = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
-
-            remoteTime > localTime
+            val maxLength = maxOf(remoteParts.size, localParts.size)
+            for (i in 0 until maxLength) {
+                val r = remoteParts.getOrNull(i) ?: 0
+                val l = localParts.getOrNull(i) ?: 0
+                if (r > l) return true
+                if (r < l) return false
+            }
+            false
         } catch (e: Exception) {
             false
         }
@@ -60,7 +75,7 @@ class UpdateManager(private val context: Context) {
     fun downloadAndInstall(url: String) {
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle("Down Bad Update")
-            .setDescription("Downloading latest version from GitHub...")
+            .setDescription("Downloading latest build from GitHub...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "downbad_latest.apk")
 

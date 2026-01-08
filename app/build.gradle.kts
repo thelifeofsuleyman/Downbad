@@ -1,3 +1,4 @@
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -13,11 +14,18 @@ android {
     defaultConfig {
         applicationId = "com.thelifeofsuleyman.downbad"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 34
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // If GitHub sends a version, use it. Otherwise, use 1.
+        val versionPropsCode = project.findProperty("versionCode")?.toString()?.toInt() ?: 1
+        val versionPropsName = project.findProperty("versionName")?.toString() ?: "1.0.0"
+
+        versionCode = versionPropsCode
+        versionName = versionPropsName
+
+        // We still need the COMMIT_ID for the UpdateManager check
+        // but we won't run the 'git' command here to avoid the error you had.
+        buildConfigField("String", "VERSION_NAME", "\"$versionPropsName\"")
     }
 
     buildTypes {
