@@ -111,7 +111,7 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(60.dp))
 
         Text(
-            text = "I've been $habitName free for PEYSER EX",
+            text = "I've been $habitName free for PEYSER EX ANAVI SIKIM",
             color = Color.White.copy(alpha = 0.8f),
             fontSize = 18.sp
         )
